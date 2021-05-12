@@ -1,0 +1,27 @@
+name: Deploy to QA
+
+on:
+  push:
+    branches:
+      - master
+      - development
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Replace secrets
+        run: |
+         sed -i 's/TELEGRAM_API_ID/${{ secrets.TELEGRAM_API_ID }}/g' src/config/config.yml
+         sed -i 's/TELEGRAM_API_HASH/${{ secrets.TELEGRAM_API_HASH }}/g' src/config/config.yml
+         sed -i 's/TELEGRAM_BOT_TOKEN/${{ secrets.TELEGRAM_BOT_TOKEN }}/g' src/config/config.yml
+
+      - uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_app_name: ${{secrets.HEROKU_APP_NAME}}
+          heroku_email: ${{secrets.HEROKU_EMAIL}}
+          usedocker: true

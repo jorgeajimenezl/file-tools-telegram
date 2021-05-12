@@ -1,0 +1,6 @@
+pyrogram
+tgcrypto
+pyyaml
+apscheduler
+aiohttp
+-e git+git://github.com/jorgeajimenezl/aiodav@develop#egg=aiodav
