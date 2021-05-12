@@ -1,10 +1,9 @@
-name: Deploy to QA
+name: Deploy to Heroku Server
 
 on:
   push:
     branches:
       - master
-      - development
   workflow_dispatch:
 
 jobs:
