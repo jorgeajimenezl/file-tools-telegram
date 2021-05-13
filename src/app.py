@@ -42,7 +42,7 @@ async def file_options(client: Client, message: Message):
                                 [InlineKeyboardButton(f"Compress {emoji.FILE_FOLDER}", callback_data=f'zip {message.message_id}')]
                            ]))
 
-@app.on_callback_query(~filters.bot & filters.regex('^done .*$'))
+@app.on_callback_query(~filters.bot & filters.regex('^split .*$'))
 async def split_file(client: Client, callback_query: CallbackQuery):
     user = callback_query.from_user.id
     _, _, message_id = callback_query.data.partition(' ')
