@@ -4,11 +4,7 @@ from pyrogram.methods.auth import connect
 from pyrogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
                             CallbackQuery, Message, ReplyKeyboardMarkup)
 
-import asyncio
-from pyrogram.types.messages_and_media import message
-import yaml
-import os
-import re
+import yaml, os, time, asyncio
 from filesize import naturalsize
 
 BOT_USER = None
@@ -25,9 +21,16 @@ app = Client('deverlop',
              api_id=CONFIG['telegram']['api-id'],
              api_hash=CONFIG['telegram']['api-hash'],
              bot_token=CONFIG['telegram']['bot-token'])
+    
+CACHE_DOWNLOAD_CURSOR = { }
 
 async def progress_update(current, total, *args):
-    _, message, text = args
+    _, message, message_id, text = args
+    lastTime = CACHE_DOWNLOAD_CURSOR.pop(message_id, None)
+    now = time.time()
+    if lastTime != None and (now - lastTime) < 5.0:
+        return
+    
     s = f"{text}: ({naturalsize(current)}/{naturalsize(total)})"
     if message.text != s:
         await message.edit_text(s)
@@ -54,7 +57,7 @@ async def split_file(client: Client, callback_query: CallbackQuery):
         local_path = await file_message.download(file_name=DATA_FOLDER_PATH,
                                                 block=True,
                                                 progress=progress_update,
-                                                progress_args=(client, message, f"{emoji.HOURGLASS_DONE} Downloading from Telegram"))
+                                                progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram"))
         if not local_path:
             raise Exception()
 
@@ -75,16 +78,17 @@ async def split_file(client: Client, callback_query: CallbackQuery):
                 await app.send_document(user, 
                                         document=partpath, 
                                         progress=progress_update,
-                                        progress_args=(client, message, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**"))
+                                        progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**"))
                 k = k + 1 # advance part count
                 os.unlink(partpath)
-        await message.edit_text(f"{emoji.CHECK_MARK_BUTTON} File successful uploaded")
+        await message.edit_text(f"{emoji.CHECK_MARK_BUTTON} File successful uploaded")        
     except Exception:
         await app.send_message(user, f"{emoji.CROSS_MARK} Error while try upload file")
         return
     finally:
         if local_path:
             os.unlink(local_path) 
+        CACHE_DOWNLOAD_CURSOR.pop(message_id, None)
 
 async def main():
     async with app:
