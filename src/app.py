@@ -31,6 +31,7 @@ async def progress_update(current, total, *args):
     if lastTime != None and (now - lastTime) < 5.0:
         return
     
+    CACHE_DOWNLOAD_CURSOR[message_id] = now
     s = f"{text}: ({naturalsize(current)}/{naturalsize(total)})"
     if message.text != s:
         await message.edit_text(s)
