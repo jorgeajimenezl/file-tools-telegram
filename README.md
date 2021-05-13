@@ -27,5 +27,5 @@ Clone repository to the VM
 
 ### Start *file-toolsbot*
 ```shell
-~> 
+(env) ~> python3 app.py
 ```
