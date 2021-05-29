@@ -71,7 +71,7 @@ async def split_file(client: Client, callback_query: CallbackQuery):
     try:
         message = await app.send_message(user, f"{emoji.HOURGLASS_DONE} Downloading from Telegram: 0%")
         # name = get_file_name(file_message)
-        name = 'split_file'
+        name = 'split_file.zip'
 
         with tempfile.TemporaryFile() as file:
             current = 0
