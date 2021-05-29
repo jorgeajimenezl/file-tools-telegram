@@ -73,7 +73,7 @@ async def split_file(client: Client, callback_query: CallbackQuery):
         # name = get_file_name(file_message)
         name = 'split_file.zip'
 
-        with tempfile.TemporaryFile() as file:
+        with tempfile.NamedTemporaryFile(suffix='.zip') as file:
             current = 0
             k = 0
 
