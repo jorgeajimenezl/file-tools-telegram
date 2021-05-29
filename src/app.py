@@ -79,7 +79,7 @@ async def split_file(client: Client, callback_query: CallbackQuery):
 
             async for chunk, offset, total in file_message.iter_download():
                 # manual call to report download progress
-                progress_update(offset, total, (client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram"))
+                await progress_update(offset, total, (client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram"))
 
                 file.write(chunk)
                 current += len(chunk)
