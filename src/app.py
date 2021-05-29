@@ -4,7 +4,7 @@ from pyrogram.methods.auth import connect
 from pyrogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
                             CallbackQuery, Message, ReplyKeyboardMarkup)
 
-import yaml, os, time, asyncio, tempfile
+import yaml, os, time, asyncio, tempfile, traceback
 from filesize import naturalsize
 
 BOT_USER = None
@@ -110,8 +110,10 @@ async def split_file(client: Client, callback_query: CallbackQuery):
                                     )
 
         await message.edit_text(f"{emoji.CHECK_MARK_BUTTON} File successful splited")        
-    except Exception:
+    except Exception as e:
         await app.send_message(user, f"{emoji.CROSS_MARK} Error while try upload file")
+        tb = traceback.format_exc()
+        await app.send_message(user, f"Error: {tb}")
         return
     finally:
         CACHE_DOWNLOAD_CURSOR.pop(message_id, None)
