@@ -54,26 +54,26 @@ def get_file_name(message: Message):
 
             if media is not None:
                 break
-            else:
-                raise ValueError("This message doesn't contain any downloadable media")
         else:
-            media = message
+            raise ValueError("This message doesn't contain any downloadable media")
+    else:
+        media = message
 
-    return getattr(media, "file_name", 'splited_file')
+    return getattr(media, "file_name", 'random.zip')
 
 @app.on_callback_query(~filters.bot & filters.regex('^split .*$'))
 async def split_file(client: Client, callback_query: CallbackQuery):
     user = callback_query.from_user.id
     _, _, message_id = callback_query.data.partition(' ')
     file_message = await app.get_messages(user, int(message_id))
-    local_path = None
+    file_path = None
 
     try:
         message = await app.send_message(user, f"{emoji.HOURGLASS_DONE} Downloading from Telegram: 0%")
-        # name = get_file_name(file_message)
-        name = 'split_file.zip'
+        name = get_file_name(file_message)
+        file_path = os.path.join(DATA_FOLDER_PATH, name)
 
-        with tempfile.NamedTemporaryFile(suffix='.zip') as file:
+        with open(file_path, 'w+b') as fp:
             current = 0
             k = 0
 
@@ -81,16 +81,18 @@ async def split_file(client: Client, callback_query: CallbackQuery):
                 # manual call to report download progress
                 await progress_update(offset, total, client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram")
 
-                file.write(chunk)
+                fp.write(chunk)
+                fp.flush()
+
                 current += len(chunk)
 
                 # reach size limit
                 if current > SPLIT_FILE_SIZE:
                     # send downloaded part
-                    file.seek(0) # return to start
                     current = 0
+                    fp.seek(0) # return to start                    
                     await app.send_document(user, 
-                                            document=file,
+                                            document=fp,
                                             file_name=f"{name}.part{k}",
                                             progress=progress_update,
                                             progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
@@ -101,10 +103,10 @@ async def split_file(client: Client, callback_query: CallbackQuery):
 
             # had some bytes to write
             if current != 0:
-                file.seek(0) # return to start
                 current = 0
+                fp.seek(0) # return to start
                 await app.send_document(user, 
-                                        document=file,
+                                        document=fp,
                                         file_name=f"{name}.part{k}",
                                         progress=progress_update,
                                         progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
@@ -115,9 +117,14 @@ async def split_file(client: Client, callback_query: CallbackQuery):
         await app.send_message(user, f"{emoji.CROSS_MARK} Error while try upload file")
         tb = traceback.format_exc()
         await app.send_message(user, f"Error: {tb}")
-        return
     finally:
         CACHE_DOWNLOAD_CURSOR.pop(message_id, None)
+
+        if file_path:
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
 
 async def main():
     async with app:
