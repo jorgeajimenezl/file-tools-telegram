@@ -4,7 +4,7 @@ from pyrogram.methods.auth import connect
 from pyrogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
                             CallbackQuery, Message, ReplyKeyboardMarkup)
 
-import yaml, os, time, asyncio
+import yaml, os, time, asyncio, tempfile
 from filesize import naturalsize
 
 BOT_USER = None
@@ -46,6 +46,21 @@ async def file_options(client: Client, message: Message):
                                 [InlineKeyboardButton(f"Compress {emoji.FILE_FOLDER}", callback_data=f'zip {message.message_id}')]
                            ]))
 
+def get_file_name(message: Message):
+    available_media = ("audio", "document", "photo", "sticker", "animation", "video", "voice", "video_note", "new_chat_photo")
+    if isinstance(message, Message):
+        for kind in available_media:
+            media = getattr(message, kind, None)
+
+            if media is not None:
+                break
+            else:
+                raise ValueError("This message doesn't contain any downloadable media")
+        else:
+            media = message
+
+    return getattr(media, "file_name", 'splited_file')
+
 @app.on_callback_query(~filters.bot & filters.regex('^split .*$'))
 async def split_file(client: Client, callback_query: CallbackQuery):
     user = callback_query.from_user.id
@@ -55,40 +70,50 @@ async def split_file(client: Client, callback_query: CallbackQuery):
 
     try:
         message = await app.send_message(user, f"{emoji.HOURGLASS_DONE} Downloading from Telegram: 0%")
-        local_path = await file_message.download(file_name=DATA_FOLDER_PATH,
-                                                block=True,
-                                                progress=progress_update,
-                                                progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram"))
-        if not local_path:
-            raise Exception()
+        name = get_file_name(file_message)
 
-        name = os.path.basename(local_path)
-        k = 0
-        with open(local_path, 'rb') as localfile:
-            while True:
-                data = localfile.read(SPLIT_FILE_SIZE)
-                    
-                if not data: # not more data
-                    break
+        with tempfile.TemporaryFile() as file:
+            current = 0
+            k = 0
 
-                # write part
-                partname = f"{name}.part{k}"
-                partpath = os.path.join(DATA_FOLDER_PATH, partname)
-                with open(partpath, 'wb') as partfile:
-                    partfile.write(data)
+            async for chunk, offset, total in file_message.iter_download():
+                # manual call to report download progress
+                progress_update(offset, total, (client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram"))
+
+                file.write(chunk)
+                current += len(chunk)
+
+                # reach size limit
+                if current > SPLIT_FILE_SIZE:
+                    # send downloaded part
+                    file.seek(0) # return to start
+                    current = 0
+                    await app.send_document(user, 
+                                            document=file,
+                                            file_name=f"{name}.part{k}",
+                                            progress=progress_update,
+                                            progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
+                                        )
+                                        
+
+                    k = k + 1
+
+            # had some bytes to write
+            if current != 0:
+                file.seek(0) # return to start
+                current = 0
                 await app.send_document(user, 
-                                        document=partpath, 
+                                        document=file,
+                                        file_name=f"{name}.part{k}",
                                         progress=progress_update,
-                                        progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**"))
-                k = k + 1 # advance part count
-                os.unlink(partpath)
-        await message.edit_text(f"{emoji.CHECK_MARK_BUTTON} File successful uploaded")        
+                                        progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
+                                    )
+
+        await message.edit_text(f"{emoji.CHECK_MARK_BUTTON} File successful splited")        
     except Exception:
         await app.send_message(user, f"{emoji.CROSS_MARK} Error while try upload file")
         return
     finally:
-        if local_path:
-            os.unlink(local_path) 
         CACHE_DOWNLOAD_CURSOR.pop(message_id, None)
 
 async def main():
