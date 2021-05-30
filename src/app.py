@@ -83,7 +83,10 @@ async def split_file(client: Client, callback_query: CallbackQuery):
 
         async for chunk, offset, total in file_message.iter_download():
             # manual call to report download progress
-            await progress_update(offset, total, client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram")
+            try:
+                await progress_update(offset, total, client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram")
+            except Exception:
+                pass
 
             fp.write(chunk)
             fp.flush()
