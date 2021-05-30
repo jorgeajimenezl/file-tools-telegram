@@ -70,44 +70,30 @@ async def split_file(client: Client, callback_query: CallbackQuery):
     _, _, message_id = callback_query.data.partition(' ')
     file_message = await app.get_messages(user, int(message_id))
     file_path = None
+    fp = None
 
     try:
         message = await app.send_message(user, f"{emoji.HOURGLASS_DONE} Downloading from Telegram: 0%")
         name = get_file_name(file_message)
         file_path = os.path.join(DATA_FOLDER_PATH, name)
 
-        with open(name, 'w+b') as fp:
-            current = 0
-            k = 0
+        fp = open(file_path, 'w+b')
+        current = 0
+        k = 0
 
-            async for chunk, offset, total in file_message.iter_download():
-                # manual call to report download progress
-                await progress_update(offset, total, client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram")
+        async for chunk, offset, total in file_message.iter_download():
+            # manual call to report download progress
+            await progress_update(offset, total, client, message, message_id, f"{emoji.HOURGLASS_DONE} Downloading from Telegram")
 
-                fp.write(chunk)
-                fp.flush()
+            fp.write(chunk)
+            fp.flush()
 
-                current += len(chunk)
+            current += len(chunk)
 
-                # reach size limit
-                if current > SPLIT_FILE_SIZE:
-                    # send downloaded part
-                    current = 0
-                    fp.seek(0) # return to start                    
-                    await app.send_document(user, 
-                                            document=fp,
-                                            file_name=f"{name}.part{k}",
-                                            progress=progress_update,
-                                            progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
-                                        )
-                                        
-
-                    k = k + 1
-
-            # had some bytes to write
-            if current != 0:
-                current = 0
-                fp.seek(0) # return to start
+            # reach size limit
+            if current > SPLIT_FILE_SIZE:
+                # send downloaded part
+                current = 0             
                 await app.send_document(user, 
                                         document=fp,
                                         file_name=f"{name}.part{k}",
@@ -115,6 +101,21 @@ async def split_file(client: Client, callback_query: CallbackQuery):
                                         progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
                                     )
 
+                # TODO: Fix bug in pyrogram that close underline file when that is used in send_document function
+                # Opening file again
+                fp = open(file_path, 'w+b')  
+                k = k + 1
+
+        # had some bytes to write
+        if current != 0:
+            current = 0
+            await app.send_document(user, 
+                                    document=fp,
+                                    file_name=f"{name}.part{k}",
+                                    progress=progress_update,
+                                    progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
+                                )
+                                
         await message.edit_text(f"{emoji.CHECK_MARK_BUTTON} File successful splited")        
     except Exception as e:
         await app.send_message(user, f"{emoji.CROSS_MARK} Error while try upload file")
@@ -123,11 +124,14 @@ async def split_file(client: Client, callback_query: CallbackQuery):
     finally:
         CACHE_DOWNLOAD_CURSOR.pop(message_id, None)
 
+        if fp:
+            fp.close()
+
         if file_path:
             try:
                 os.remove(file_path)
             except Exception:
-                pass
+                pass        
 
 async def main():
     async with app:
