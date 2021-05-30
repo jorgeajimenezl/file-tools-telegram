@@ -75,11 +75,11 @@ async def split_file(client: Client, callback_query: CallbackQuery):
     try:
         message = await app.send_message(user, f"{emoji.HOURGLASS_DONE} Downloading from Telegram: 0%")
         name = get_file_name(file_message)
-        file_path = os.path.join(DATA_FOLDER_PATH, name)
-
-        fp = open(file_path, 'w+b')
+        # file_path = os.path.join(DATA_FOLDER_PATH, name)
+        
         current = 0
         k = 0
+        fp = open(f"{name}.part{k}", 'w+b')
 
         async for chunk, offset, total in file_message.iter_download():
             # manual call to report download progress
@@ -101,10 +101,13 @@ async def split_file(client: Client, callback_query: CallbackQuery):
                                         progress_args=(client, message, message_id, f"{emoji.HOURGLASS_DONE} Uploading **Piece #{k}**")
                                     )
 
+                fp.close()
+                os.remove(fp.name) # remove temporal file
+
                 # TODO: Fix bug in pyrogram that close underline file when that is used in send_document function
-                # Opening file again
-                fp = open(file_path, 'w+b')  
+                # Opening file again  
                 k = k + 1
+                fp = open(f"{name}.part{k}", 'w+b')
 
         # had some bytes to write
         if current != 0:
@@ -126,12 +129,7 @@ async def split_file(client: Client, callback_query: CallbackQuery):
 
         if fp:
             fp.close()
-
-        if file_path:
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass        
+            os.remove(fp.name)       
 
 async def main():
     async with app:
