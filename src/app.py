@@ -35,7 +35,7 @@ async def progress_update(current, total, *args):
         return
     
     CACHE_DOWNLOAD_CURSOR[message_id] = now
-    s = f"{text}: ({naturalsize(current)}/{naturalsize(total)})"
+    s = f"{text}: ({'%.1f' % (current / 1024 / 1024)}/{naturalsize(total)})"
     if message.text != s:
         await message.edit_text(s)
 
