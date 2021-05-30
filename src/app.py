@@ -17,6 +17,9 @@ SPLIT_FILE_SIZE = 100 * 1024 * 1024
 with open(CONFIG_PATH, 'r') as file:
     CONFIG = yaml.load(file.read(), Loader=yaml.Loader)
 
+if not os.path.exists(DATA_FOLDER_PATH):
+    os.mkdir(DATA_FOLDER_PATH)
+
 app = Client('deverlop',
              api_id=CONFIG['telegram']['api-id'],
              api_hash=CONFIG['telegram']['api-hash'],
@@ -73,7 +76,7 @@ async def split_file(client: Client, callback_query: CallbackQuery):
         name = get_file_name(file_message)
         file_path = os.path.join(DATA_FOLDER_PATH, name)
 
-        with open(file_path, 'w+b') as fp:
+        with open(name, 'w+b') as fp:
             current = 0
             k = 0
 
