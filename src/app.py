@@ -48,7 +48,11 @@ async def file_options(client: Client, message: Message):
     await app.send_message(user,
                         f"Options:",
                             reply_markup=InlineKeyboardMarkup([
-                                [InlineKeyboardButton(f"Split {emoji.KITCHEN_KNIFE}", callback_data=f'split {message.message_id}')],
+                                [InlineKeyboardButton(f"Split {emoji.KITCHEN_KNIFE}", callback_data=f'split {message.message_id} 100 MB')],
+                                [InlineKeyboardButton(f"Split {emoji.KITCHEN_KNIFE}", callback_data=f'split {message.message_id} 200 MB')],
+                                [InlineKeyboardButton(f"Split {emoji.KITCHEN_KNIFE}", callback_data=f'split {message.message_id} 300 MB')],
+                                [InlineKeyboardButton(f"Split {emoji.KITCHEN_KNIFE}", callback_data=f'split {message.message_id} 400 MB')],
+                                [InlineKeyboardButton(f"Split {emoji.KITCHEN_KNIFE}", callback_data=f'split {message.message_id} 500 MB')],
                                 [InlineKeyboardButton(f"Compress {emoji.FILE_FOLDER}", callback_data=f'zip {message.message_id}')]
                            ]))
 
@@ -70,7 +74,9 @@ def get_file_name(message: Message):
 @app.on_callback_query(~filters.bot & filters.regex('^split .*$'))
 async def split_file(client: Client, callback_query: CallbackQuery):
     user = callback_query.from_user.id
-    _, _, message_id = callback_query.data.partition(' ')
+    _, _, data = callback_query.data.partition(' ')
+    message_id, split_size = data.split(' ')
+    split_size = int(split_size)
     file_message = await app.get_messages(user, int(message_id))
     file_path = None
     fp = None
@@ -97,7 +103,7 @@ async def split_file(client: Client, callback_query: CallbackQuery):
             current += len(chunk)
 
             # reach size limit
-            if current > SPLIT_FILE_SIZE:
+            if current > split_size * 1024 * 1024:
                 # send downloaded part
                 current = 0             
                 await app.send_document(user, 
