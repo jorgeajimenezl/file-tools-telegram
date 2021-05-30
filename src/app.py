@@ -1,17 +1,19 @@
 from typing import Tuple
 from pyrogram import (Client, filters, emoji)
-from pyrogram.methods.auth import connect
 from pyrogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
                             CallbackQuery, Message, ReplyKeyboardMarkup)
 
-import yaml, os, time, asyncio, tempfile, traceback
+import yaml, os, time, asyncio, traceback
 from filesize import naturalsize
+import uvloop
+
+uvloop.install()
 
 BOT_USER = None
 CONFIG_FOLDER_PATH = './config/'
 DATA_FOLDER_PATH = './data/'
 CONFIG_PATH = os.path.join(CONFIG_FOLDER_PATH, 'config.yml')
-SPLIT_FILE_SIZE = 100 * 1024 * 1024
+SPLIT_FILE_SIZE = 500 * 1024 * 1024
 
 # Read config file
 with open(CONFIG_PATH, 'r') as file:
@@ -26,6 +28,7 @@ app = Client('deverlop',
              bot_token=CONFIG['telegram']['bot-token'])
     
 CACHE_DOWNLOAD_CURSOR = { }
+# CACHE_SPLIT_SIZE = { }
 
 async def progress_update(current, total, *args):
     _, message, message_id, text = args
@@ -35,7 +38,7 @@ async def progress_update(current, total, *args):
         return
     
     CACHE_DOWNLOAD_CURSOR[message_id] = now
-    s = f"{text}: ({'%.1f' % (current / 1024 / 1024)}/{naturalsize(total)})"
+    s = f"{text}: ({'%.1f' % (current / 1024 / 1024)} MB/{naturalsize(total)})"
     if message.text != s:
         await message.edit_text(s)
 
@@ -43,7 +46,7 @@ async def progress_update(current, total, *args):
 async def file_options(client: Client, message: Message):
     user = message.from_user.id
     await app.send_message(user,
-                        f"What's do you do with this file?",
+                        f"Options:",
                             reply_markup=InlineKeyboardMarkup([
                                 [InlineKeyboardButton(f"Split {emoji.KITCHEN_KNIFE}", callback_data=f'split {message.message_id}')],
                                 [InlineKeyboardButton(f"Compress {emoji.FILE_FOLDER}", callback_data=f'zip {message.message_id}')]
@@ -134,17 +137,18 @@ async def split_file(client: Client, callback_query: CallbackQuery):
             fp.close()
             os.remove(fp.name)       
 
-async def main():
-    async with app:
-        # TODO: add something
-        global BOT_USER
-        BOT_USER = await app.get_me()
+# async def main():
+#     async with app:
+#         # TODO: add something
+#         global BOT_USER
+#         BOT_USER = await app.get_me()
 
-        try:
-            while True:
-                await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            print("Stoped!!! ...")
+#         try:
+#             while True:
+#                 await asyncio.sleep(1)
+#         except KeyboardInterrupt:
+#             print("Stoped!!! ...")
 
 if __name__ == "__main__":
-    app.run(main())
+    # app.run(main())
+    app.run()
